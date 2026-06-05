@@ -1,2 +1,6 @@
 .DS_Store
 gatus
+
+terraform.tfstate
+terraform.tfstate.backup
+.terraform/
