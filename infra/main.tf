@@ -1,32 +1,29 @@
 
 # Create Vpc
 resource "aws_vpc" "custom_vpc" {
-  cidr_block           = "10.0.0.0/22"
+  cidr_block           = var.vpc_cidr_block
   enable_dns_hostnames = true
   enable_dns_support   = true
 
   tags = {
-    Name = "Custom_VPC"
+    Name = "${var.project_name}-vpc"
   }
 
 }
 
-# List az available
-data "aws_availability_zones" "available" {
-  state = "available"
-}
+
 
 # Create Public subnets
 resource "aws_subnet" "public" {
-  count             = 2
+  count             = var.public_subnet_count
   vpc_id            = aws_vpc.custom_vpc.id
-  cidr_block        = cidrsubnet(aws_vpc.custom_vpc.cidr_block, 3, count.index)
+  cidr_block        = cidrsubnet(aws_vpc.custom_vpc.cidr_block, var.subnet_newbits, count.index)
   availability_zone = data.aws_availability_zones.available.names[count.index]
 
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "public-${count.index + 1}"
+    Name = "${var.project_name}-public-${count.index + 1}"
     Type = "public"
   }
 }
@@ -36,11 +33,11 @@ resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.custom_vpc.id
 
   tags = {
-    Name = "my-app-igw"
+    Name = "${var.project_name}-igw"
   }
 }
 
-# Create Public Subnets
+# Create Public Subnets route table
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.custom_vpc.id
 
@@ -50,13 +47,13 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name = "public-rt"
+    Name = "${var.project_name}-public-rt"
   }
 }
 
 # Associate subnets with route tables
 resource "aws_route_table_association" "public" {
-  count          = 2
+  count          = var.public_subnet_count
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
 }
@@ -92,7 +89,7 @@ resource "aws_security_group" "alb" {
   }
 
   tags = {
-    Name = "alb-sg"
+    Name = "${var.project_name}-alb-sg"
   }
 }
 
@@ -105,8 +102,8 @@ resource "aws_security_group" "ecs" {
 
   ingress {
     description     = "Traffic from ALB only"
-    from_port       = 8080
-    to_port         = 8080
+    from_port       = var.container_port_number
+    to_port         = var.container_port_number
     protocol        = "tcp"
     security_groups = [aws_security_group.alb.id] # Reference SG, not CIDR!
   }
@@ -118,7 +115,7 @@ resource "aws_security_group" "ecs" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = { Name = "ecs-tasks-sg" }
+  tags = { Name = "${var.project_name}-ecs-tasks-sg" }
 }
 
 
@@ -127,6 +124,7 @@ resource "aws_security_group" "ecs" {
 resource "aws_ecr_repository" "gatus" {
   name                 = "ecs_project-gatus"
   image_tag_mutability = "IMMUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true
@@ -137,7 +135,7 @@ resource "aws_ecr_repository" "gatus" {
   }
 
   tags = {
-    Name = "ecs_project-gatus"
+    Name = "${var.project_name}-ecr-repo"
   }
 }
 
@@ -152,7 +150,7 @@ resource "aws_lb" "alb" {
 
 
   tags = {
-    Name = "ecs-project-gatus-alb"
+    Name = "${var.project_name}-alb"
   }
 }
 
@@ -167,7 +165,7 @@ resource "aws_ecs_cluster" "ecs_project_gatus" {
   }
 
   tags = {
-    Name = "ecs_project-gatus"
+    Name = "${var.project_name}-ecs-cluster"
   }
 }
 
@@ -177,7 +175,7 @@ resource "aws_ecs_cluster" "ecs_project_gatus" {
 resource "aws_lb_target_group" "alb" {
   name        = "ecs-project-gatus-target-group"
   target_type = "ip"
-  port        = 8080
+  port        = var.container_port_number
   protocol    = "HTTP"
   vpc_id      = aws_vpc.custom_vpc.id
 
@@ -187,7 +185,7 @@ resource "aws_lb_target_group" "alb" {
 }
 
 tags = {
-  Name = "ecs-project-gatus-target-group"
+  Name = "${var.project_name}-target-group"
 }
 }
 
@@ -212,11 +210,11 @@ resource "aws_lb_listener" "http_alb_listener" {
 # ACM certificate
 
 resource "aws_acm_certificate" "cert" {
-  domain_name       = "gatus.sakariyaaden.com"
+  domain_name       = var.domain_name
   validation_method = "DNS"
 
   tags = {
-    Name = "ecs_project-gatus-acm-cert"
+    Name = "${var.project_name}-acm-cert"
   }
 
   lifecycle {
@@ -228,10 +226,10 @@ resource "aws_acm_certificate" "cert" {
 # Route 53 hosted zones
 
 resource "aws_route53_zone" "gatus" {
-  name = "gatus.sakariyaaden.com"
+  name = var.domain_name
 
   tags = {
-    Name = "gatus.sakariyaaden.com"
+    Name = "${var.project_name}-hosted-zone"
   }
 }
 
@@ -319,7 +317,7 @@ resource "aws_ecs_task_definition" "ecs_project_gatus" {
     essential = true
 
     portMappings = [{
-      containerPort = 8080
+      containerPort = var.container_port_number
       protocol      = "tcp"
     }]
 
@@ -328,7 +326,7 @@ resource "aws_ecs_task_definition" "ecs_project_gatus" {
       logDriver = "awslogs"
       options = {
         "awslogs-group"         = aws_cloudwatch_log_group.ecs.name
-        "awslogs-region"        = "eu-west-2"
+        "awslogs-region"        = data.aws_region.current_region.region
         "awslogs-stream-prefix" = "ecs"
       }
     }
@@ -355,7 +353,7 @@ resource "aws_ecs_service" "main" {
     load_balancer {
         target_group_arn = aws_lb_target_group.alb.arn
         container_name   = "app"
-        container_port   = 8080
+        container_port   = var.container_port_number
     }
 
     depends_on = [aws_lb_listener.http_alb_listener, aws_lb_listener.https_alb_listener, aws_iam_role_policy_attachment.ecs_execution]
@@ -366,7 +364,7 @@ resource "aws_ecs_service" "main" {
 
 resource "aws_route53_record" "gatus_alb_pointer" {
   zone_id = aws_route53_zone.gatus.id
-  name    = "gatus.sakariyaaden.com"
+  name    = var.domain_name
   type    = "A"
    alias {
     name                   = aws_lb.alb.dns_name # ALB DNS name
