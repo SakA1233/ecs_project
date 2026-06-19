@@ -1,21 +1,10 @@
-
 # container port number
 
 variable "container_port_number" {
     type = number
     description = "port number the container listens on"
-    default = 8080
   
 }
-
-# domain name
-
-variable "domain_name" {
-  type        = string
-  description = "Domain name for the ACM certificate and Route53 record"
-  default     = "gatus.sakariyaaden.com"
-}
-
 
 
 # Project name
@@ -23,8 +12,14 @@ variable "domain_name" {
 variable "project_name" {
     type = string
     description = "Name of the project, used to build resource names and tags"
-    default = "ecs_project-gatus"
 
+}
+
+# vpc id
+
+variable "vpc_id" {
+    type = string
+    description = "vpc id to attach to security groups"
   
 }
 
