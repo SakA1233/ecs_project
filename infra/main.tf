@@ -1,60 +1,73 @@
+terraform {
+  backend "s3" {
+    bucket = "ecs-project-gatus-state-s3-bucket"
+    key    = "terraform.tfstate"
+    region = "eu-west-2"
+  }
+}
+
+
+
+
+
+
 module "vpc" {
-  source = "./modules/vpc"
+  source       = "./modules/vpc"
   project_name = var.project_name
 }
 
 module "sg" {
-  source = "./modules/sg"
-  project_name = var.project_name
+  source                = "./modules/sg"
+  project_name          = var.project_name
   container_port_number = var.container_port_number
-  vpc_id = module.vpc.vpc_id
-  
+  vpc_id                = module.vpc.vpc_id
+
 }
 
 
 module "ecr" {
-  source = "./modules/ecr"
+  source       = "./modules/ecr"
   project_name = var.project_name
-  
+
 }
 
 module "alb" {
-  source = "./modules/alb"
-  project_name = var.project_name
-  alb_sg_id = module.sg.alb_sg_id
-  aws_subnet_ids = module.vpc.aws_subnet_ids
+  source                = "./modules/alb"
+  project_name          = var.project_name
+  alb_sg_id             = module.sg.alb_sg_id
+  aws_subnet_ids        = module.vpc.aws_subnet_ids
   container_port_number = var.container_port_number
-  vpc_id = module.vpc.vpc_id
-  
+  vpc_id                = module.vpc.vpc_id
+
 }
 
 module "acm" {
-  source = "./modules/acm"
+  source       = "./modules/acm"
   project_name = var.project_name
-  domain_name = var.domain_name
-  
+  domain_name  = var.domain_name
+
 }
 
 module "route53" {
-  source = "./modules/route53"
-  project_name = var.project_name
-  domain_name = var.domain_name
+  source                        = "./modules/route53"
+  project_name                  = var.project_name
+  domain_name                   = var.domain_name
   acm_domain_validation_options = module.acm.acm_domain_validation_options
-  acm_certificate_arn = module.acm.acm_certificate_arn
-  alb_dns_name = module.alb.alb_dns_name
-  alb_hosted_zone_id = module.alb.alb_hosted_zone_id
-  
+  acm_certificate_arn           = module.acm.acm_certificate_arn
+  alb_dns_name                  = module.alb.alb_dns_name
+  alb_hosted_zone_id            = module.alb.alb_hosted_zone_id
+
 }
 
 
 module "ecs" {
-  source = "./modules/ecs"
-  project_name = var.project_name
+  source                = "./modules/ecs"
+  project_name          = var.project_name
   container_port_number = var.container_port_number
-  ecs_sg_id = module.sg.ecs_sg_id
-  repository_url = module.ecr.repository_url
-  target_group_arn = module.alb.target_group_arn
-  aws_subnet_ids = module.vpc.aws_subnet_ids 
+  ecs_sg_id             = module.sg.ecs_sg_id
+  repository_url        = module.ecr.repository_url
+  target_group_arn      = module.alb.target_group_arn
+  aws_subnet_ids        = module.vpc.aws_subnet_ids
 }
 
 
@@ -66,14 +79,14 @@ resource "aws_lb_listener" "http_alb_listener" {
   protocol          = "HTTP"
 
   default_action {
-  type = "redirect"
+    type = "redirect"
 
-  redirect {
-    port        = "443"
-    protocol    = "HTTPS"
-    status_code = "HTTP_301"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
   }
-}
 }
 
 
@@ -92,4 +105,5 @@ resource "aws_lb_listener" "https_alb_listener" {
     target_group_arn = module.alb.target_group_arn
   }
 }
+
 
