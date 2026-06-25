@@ -155,6 +155,21 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     ]
     resources = ["*"]
   }
+
+  statement {
+    sid    = "TerraformState"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+      "s3:ListBucket",
+    ]
+    resources = [
+      "arn:aws:s3:::ecs-project-gatus-state-s3-bucket",
+      "arn:aws:s3:::ecs-project-gatus-state-s3-bucket/*",
+    ]
+  }
 }
 
 resource "aws_iam_policy" "github_actions" {
