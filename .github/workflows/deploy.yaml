@@ -37,6 +37,9 @@ jobs:
           docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
 
+      - name: setup terraform
+        uses: hashicorp/setup-terraform@v4
+
 
       - name: Terraform deploy
         working-directory: ./infra
