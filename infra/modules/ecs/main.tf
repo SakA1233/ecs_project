@@ -20,8 +20,8 @@ resource "aws_iam_role" "ecs_execution" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "ecs-tasks.amazonaws.com" }
     }]
   })
@@ -38,7 +38,7 @@ resource "aws_cloudwatch_log_group" "ecs" {
   name = "/ecs/gatus"
 }
 
-# ECS Task defintion
+# ECS Task definition
 
 resource "aws_ecs_task_definition" "ecs_project_gatus" {
   family                   = "ecs_project-gatus"
@@ -58,7 +58,7 @@ resource "aws_ecs_task_definition" "ecs_project_gatus" {
       protocol      = "tcp"
     }]
 
-    
+
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -75,23 +75,23 @@ resource "aws_ecs_task_definition" "ecs_project_gatus" {
 # ECS service
 
 resource "aws_ecs_service" "main" {
-    name            = "ecs_project-gatus"
-    cluster         = aws_ecs_cluster.ecs_project_gatus.id
-    task_definition = aws_ecs_task_definition.ecs_project_gatus.arn
-    desired_count   = 1
-    launch_type     = "FARGATE"
+  name            = "ecs_project-gatus"
+  cluster         = aws_ecs_cluster.ecs_project_gatus.id
+  task_definition = aws_ecs_task_definition.ecs_project_gatus.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
 
-    network_configuration {
-        security_groups  = [var.ecs_sg_id]
-        subnets          = var.aws_subnet_ids
-        assign_public_ip = true
-    }
+  network_configuration {
+    security_groups  = [var.ecs_sg_id]
+    subnets          = var.aws_subnet_ids
+    assign_public_ip = true
+  }
 
-    load_balancer {
-        target_group_arn = var.target_group_arn
-        container_name   = "app"
-        container_port   = var.container_port_number
-    }
+  load_balancer {
+    target_group_arn = var.target_group_arn
+    container_name   = "app"
+    container_port   = var.container_port_number
+  }
 
 }
 
