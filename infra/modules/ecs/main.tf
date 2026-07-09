@@ -44,8 +44,8 @@ resource "aws_ecs_task_definition" "ecs_project_gatus" {
   family                   = "ecs_project-gatus"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = "256"
-  memory                   = "512"
+  cpu                      = var.cpu
+  memory                   = var.memory
   execution_role_arn       = aws_iam_role.ecs_execution.arn
 
   container_definitions = jsonencode([{
@@ -78,7 +78,7 @@ resource "aws_ecs_service" "main" {
   name            = "ecs_project-gatus"
   cluster         = aws_ecs_cluster.ecs_project_gatus.id
   task_definition = aws_ecs_task_definition.ecs_project_gatus.arn
-  desired_count   = 1
+  desired_count   = var.desired_count
   launch_type     = "FARGATE"
 
   network_configuration {
