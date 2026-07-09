@@ -27,6 +27,19 @@ resource "aws_subnet" "public" {
   }
 }
 
+# Create Private subnets
+resource "aws_subnet" "private" {
+  count             = var.public_subnet_count
+  vpc_id            = aws_vpc.custom_vpc.id
+  cidr_block        = cidrsubnet(aws_vpc.custom_vpc.cidr_block, var.subnet_newbits, count.index + var.public_subnet_count)
+  availability_zone = data.aws_availability_zones.available.names[count.index]
+
+  tags = {
+    Name = "${var.project_name}-private-${count.index + 1}"
+    Type = "private"
+  }
+}
+
 # Internet Gateway
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.custom_vpc.id

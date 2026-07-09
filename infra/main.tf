@@ -6,11 +6,6 @@ terraform {
   }
 }
 
-
-
-
-
-
 module "vpc" {
   source       = "./modules/vpc"
   project_name = var.project_name
@@ -105,5 +100,8 @@ resource "aws_lb_listener" "https_alb_listener" {
     target_group_arn = module.alb.target_group_arn
   }
 }
+
+
+
 
 
