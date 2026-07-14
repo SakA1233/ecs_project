@@ -1,17 +1,27 @@
-name: ecs_poject-gatus workflow
+name: ECS Deploy workflow
 
 on:
-  push:
-    branches:
-      - main
-
+  workflow_call:
+    inputs:
+      image_tag:
+        description: "The commit SHA used to tag the pushed image"
+        type: string
+        required: true
 
 permissions:
-  id-token: write   # allows GitHub to issue OIDC token
-  contents: read    # allows checkout
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: eu-west-2
+  ECR_REPOSITORY: ecs_project-gatus
+  ECS_CLUSTER: ecs_project-gatus
+  ECS_SERVICE: ecs_project-gatus
+  CONTAINER_NAME: app
+  HEALTH_CHECK_URL: https://gatus.sakariyaaden.com/health
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: checkout code
@@ -21,37 +31,53 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: eu-west-2
-
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push docker image to Amazon ECR
-        env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          REPOSITORY: ecs_project-gatus
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Download current task definition
         run: |
-          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
-          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.ECS_SERVICE }} \
+            --query taskDefinition \
+            > task-definition.json
 
-      - name: setup terraform
-        uses: hashicorp/setup-terraform@v4
+      - name: Update image in task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ inputs.image_tag }}
 
+      - name: Deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
 
-      - name: Terraform deploy
-        working-directory: ./infra
+      - name: Wait for DNS propagation
+        run: sleep 30
+
+      - name: Health check
         run: |
-          terraform init
-          terraform plan
-          terraform apply -auto-approve
+          for i in {1..5}; do
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.HEALTH_CHECK_URL }})
+            echo "Attempt $i: HTTP $HTTP_STATUS"
 
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "Health check passed"
+              exit 0
+            fi
 
-      - name: health check
-        run: |
-          curl --fail https://gatus.sakariyaaden.com/health
+            if [ $i -lt 5 ]; then
+              sleep 30
+            fi
+          done
 
-
-        
+          echo "Health check failed after 5 attempts"
+          exit 1
