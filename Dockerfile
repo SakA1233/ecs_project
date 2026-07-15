@@ -2,8 +2,10 @@
 FROM golang:alpine AS builder
 RUN apk --update add ca-certificates git
 WORKDIR /app
-RUN git clone https://github.com/TwiN/gatus.git . 
-RUN go mod tidy -diff
+RUN git clone https://github.com/TwiN/gatus.git .
+RUN go get golang.org/x/image@latest
+RUN go get golang.org/x/net@latest
+RUN go mod tidy
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o gatus .
 
 
