@@ -1,0 +1,27 @@
+name: Main Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    uses: ./.github/workflows/terraform.yaml
+    secrets: inherit
+
+  build:
+    needs: terraform
+    uses: ./.github/workflows/build.yaml
+    secrets: inherit
+
+  deploy:
+    needs: build
+    uses: ./.github/workflows/deploy.yaml
+    with:
+      image_tag: ${{ needs.build.outputs.image_tag }}
+    secrets: inherit
