@@ -45,7 +45,7 @@ jobs:
           docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG .
 
       - name: Scan image for vulnerabilities
-        uses: anchore/scan-action@v3
+        uses: anchore/scan-action@v7
         with:
           image: ${{ steps.login-ecr.outputs.registry }}/${{ env.REPOSITORY }}:${{ steps.set-tag.outputs.tag }}
           fail-build: true
