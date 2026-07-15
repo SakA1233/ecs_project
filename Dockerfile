@@ -14,7 +14,7 @@ RUN ls -la /app
 #RUN go test ./... -mod vendor
 
 # Run the binary on an empty container
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot
 WORKDIR /app
 COPY --from=builder /app/gatus .
 COPY --from=builder /app/config.yaml ./config/config.yaml
