@@ -64,7 +64,7 @@ module "ecs" {
   ecs_sg_id             = module.sg.ecs_sg_id
   repository_url        = module.ecr.repository_url
   target_group_arn      = module.alb.target_group_arn
-  aws_subnet_ids        = module.vpc.aws_subnet_ids
+  aws_subnet_ids        = module.vpc.aws_private_subnet_ids
   desired_count         = var.desired_count
   cpu                   = var.cpu
   memory                = var.memory

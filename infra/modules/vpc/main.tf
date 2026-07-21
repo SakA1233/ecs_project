@@ -107,3 +107,10 @@ resource "aws_route_table" "private" {
     Name = "${var.project_name}-private-rt"
   }
 }
+
+# Associate Private subnets with route tables
+resource "aws_route_table_association" "private" {
+  count          = var.public_subnet_count
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private.id
+}
